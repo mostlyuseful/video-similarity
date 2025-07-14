@@ -87,6 +87,18 @@ wheels = [
 ]
 
 [[package]]
+name = "opencv-stubs"
+version = "0.0.12"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/14/42/a5f93d674b940063d506a4fe1c0d3d5da041ce98b5ccd984bf01a445f20d/opencv_stubs-0.0.12.tar.gz", hash = "sha256:bc8efdbeb8ee7819d44ed963f9cde2ec2a5c7068980670657089c1c4445270b8", size = 341598, upload-time = "2025-06-08T01:48:28.547Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/61/14/9cc155dcf5ac430ba9bc25a359aebeecfd64f691e7280a567af05147c29b/opencv_stubs-0.0.12-py3-none-any.whl", hash = "sha256:6cefd1e49d7f66f9636f9829c57e10fbd06826a0a27fc3884bf579473b29b3a9", size = 362611, upload-time = "2025-06-08T01:48:30.002Z" },
+]
+
+[[package]]
 name = "platformdirs"
 version = "4.3.8"
 source = { registry = "https://pypi.org/simple" }
@@ -134,6 +146,7 @@ source = { editable = "." }
 dependencies = [
     { name = "numpy" },
     { name = "opencv-python" },
+    { name = "opencv-stubs" },
     { name = "scenedetect", extra = ["opencv"] },
 ]
 
@@ -141,5 +154,6 @@ dependencies = [
 requires-dist = [
     { name = "numpy", specifier = ">=2.3.1" },
     { name = "opencv-python", specifier = ">=4.11.0.86" },
+    { name = "opencv-stubs", specifier = ">=0.0.12" },
     { name = "scenedetect", extras = ["opencv"], specifier = ">=0.6.6" },
 ]
