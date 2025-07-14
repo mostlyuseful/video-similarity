@@ -24,7 +24,7 @@ These requirements form the foundation of the program and should be implemented 
 *   **2.3. Error Handling:**
     *   **Invalid File Paths:** If a path is invalid (does not exist, is a directory), print an error to the console and skip that file. The program should continue if at least two valid videos remain.
     *   **Video Processing Failure:** If a video file is corrupt or cannot be opened by OpenCV, treat it as an invalid path.
-    *   **No Features Extracted:** If PySceneDetect finds no keyframes in a valid video, print a warning and exclude that video from comparisons.
+    *   **No Features Extracted:** If SceneDetect finds no keyframes in a valid video, print a warning and exclude that video from comparisons.
     *   **Exit Condition:** If fewer than two processable videos are available after initial validation, the program should exit with an informative message.
 
 *   **2.4. Performance:**
@@ -41,7 +41,7 @@ These requirements form the foundation of the program and should be implemented 
 
 *   **3.1. Architecture & Algorithm:**
     1.  **Input Validation:** Process CLI arguments and validate video file paths as per section 2.3.
-    2.  **Keyframe Extraction:** For each valid video, use `PySceneDetect` (content-aware detection) to extract a list of keyframes. Store these keyframes in memory.
+    2.  **Keyframe Extraction:** For each valid video, use `SceneDetect` (content-aware detection) to extract a list of keyframes. Store these keyframes in memory.
     3.  **Feature Aggregation:** For each video, iterate through its extracted keyframes and extract `ORB` feature descriptors. Pool all descriptors for a single video into one large "bag of features".
     4.  **Pairwise Comparison:** For each pair of videos:
         *   Use OpenCV's `BFMatcher` (Brute-Force Matcher) with `KNN` (k=2) to match the aggregated feature "bag" of Video A against that of Video B.

@@ -35,7 +35,7 @@ Create a Python project structure for a video similarity tool. The project shoul
 
 1.  Create a `pyproject.toml` file. Specify Python 3.9+ and add the following dependencies:
     - `opencv-python`
-    - `pyscenedetect[opencv]`
+    - `scenedetect`
     - `numpy`
 
 2.  Create a `src` directory.
@@ -72,7 +72,7 @@ Modify the `src/video_similarity/main.py` file from the previous step.
 ```text
 Create a new file `src/video_similarity/processing.py`. This module will handle all video processing logic.
 
-1.  Import `cv2`, `numpy`, and `pyscenedetect`. From `pyscenedetect` import `video_manager`, `scene_manager`, and `detectors.ContentDetector`.
+1.  Import `cv2`, `numpy`, and `scenedetect`. From `scenedetect` import `video_manager`, `scene_manager`, and `detectors.ContentDetector`.
 2.  Create a function `extract_aggregated_features(video_path: str) -> np.ndarray | None`. This function will perform the core processing for the POC.
 3.  Inside the function:
     - Use a `try...except` block to catch potential errors during video processing (e.g., corrupt files). If an error occurs, print a warning and return `None`.
