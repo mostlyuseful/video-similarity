@@ -1,4 +1,4 @@
-import argparse
+import typer
 from dataclasses import dataclass
 from pathlib import Path
 from .processing import extract_aggregated_features, compare_features_poc
@@ -14,25 +14,19 @@ class VideoFile:
     is_valid: bool
 
 
-def parse_and_validate_args() -> list[VideoFile]:
-    parser = argparse.ArgumentParser(description="Video Similarity Tool")
-    parser.add_argument("videos", nargs="+", help="Paths to video files")
-    args = parser.parse_args()
-
+def main(videos: list[str] = typer.Argument(..., help="Paths to video files")):
+    """Video Similarity Tool"""
+    
+    # Validate video files
     video_files = []
-    for video_path in args.videos:
+    for video_path in videos:
         path = Path(video_path)
         if path.exists() and path.is_file():
             video_files.append(VideoFile(path, True))
         else:
             print(f"WARNING: File not found or is a directory: {video_path}")
             video_files.append(VideoFile(path, False))
-    return video_files
-
-
-def main():
-    print("Video Similarity Tool")
-    video_files = parse_and_validate_args()
+    
     valid_videos = [vf for vf in video_files if vf.is_valid]
 
     if len(valid_videos) < 2:
@@ -80,3 +74,8 @@ def main():
     json_output = generate_json_output_poc(significant_matches)
     print("\nFinal JSON Output:")
     print(json_output)
+
+
+if __name__ == "__main__":
+    typer.run(main)
+    
