@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.scripts]
-video-similarity = "video_similarity:main"
+video-similarity = "video_similarity.main:main"
 
 [build-system]
 requires = ["hatchling"]

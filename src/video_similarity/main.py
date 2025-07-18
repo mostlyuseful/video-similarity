@@ -14,68 +14,68 @@ class VideoFile:
     is_valid: bool
 
 
-def main(videos: list[str] = typer.Argument(..., help="Paths to video files")):
-    """Video Similarity Tool"""
+def cli(videos: list[str] = typer.Argument(..., help="List of video file paths"), frame_skip: int = typer.Option(0, help="Number of frames to skip during feature extraction")):
+    """
+    CLI entry point for video similarity comparison.
     
-    # Validate video files
-    video_files = []
-    for video_path in videos:
-        path = Path(video_path)
-        if path.exists() and path.is_file():
-            video_files.append(VideoFile(path, True))
-        else:
-            print(f"WARNING: File not found or is a directory: {video_path}")
-            video_files.append(VideoFile(path, False))
+    Args:
+        videos: List of video file paths to compare
+    """
+    if len(videos) < 2:
+        typer.echo("Error: At least 2 videos are required for comparison.")
+        raise typer.Exit(1)
+
+    video_files = [Path(video) for video in videos]
     
-    valid_videos = [vf for vf in video_files if vf.is_valid]
+    # Validate files exist
+    for video_file in video_files:
+        if not video_file.exists():
+            typer.echo(f"Error: File not found: {video_file}")
+            raise typer.Exit(1)
 
-    if len(valid_videos) < 2:
-        print("ERROR: Need at least 2 valid videos for comparison")
-        return
-
-    print(f"Found {len(valid_videos)} valid videos:")
-    for v in valid_videos:
-        print(f"- {v.path}")
-
-    # Extract features for each valid video
+    # Extract features for all videos
+    typer.echo("Extracting features from videos...")
     video_features = {}
-    for video in valid_videos:
-        print(f"Processing {video.path}...")
-        features = extract_aggregated_features(str(video.path))
-        if features is not None:
-            video_features[str(video.path)] = features
-            print(f"  Extracted {len(features)} descriptors")
-        else:
-            print(f"  WARNING: Skipping {video.path} - feature extraction failed")
+    for video_file in video_files:
+        features = extract_aggregated_features(str(video_file), frame_skip=frame_skip)
+        if features is None:
+            typer.echo(f"Warning: Could not extract features from {video_file}")
+            continue
+        video_features[video_file] = features
 
-    # Ensure we have at least 2 videos with features
     if len(video_features) < 2:
-        print("ERROR: Need at least 2 videos with extracted features")
-        return
+        typer.echo("Error: Need at least 2 videos with valid features for comparison.")
+        raise typer.Exit(1)
 
-    # Perform pairwise comparisons and collect significant matches
-    print("\nPerforming pairwise comparisons:")
-    significant_matches = []
-    video_paths = list(video_features.keys())
-    for path_a, path_b in itertools.combinations(video_paths, 2):
-        score = compare_features(video_features[path_a], video_features[path_b])
-        print(f"{path_a} vs {path_b} - Score: {score:.4f}")
+    # Compare all pairs
+    typer.echo("Comparing videos...")
+    results = []
+    for video_a, video_b in itertools.combinations(video_features.keys(), 2):
+        similarity = compare_features(
+            video_features[video_a], 
+            video_features[video_b]
+        )
+        
+        results.append({
+            "video_a": str(video_a),
+            "video_b": str(video_b),
+            "similarity": float(similarity),
+            "is_similar": similarity >= SIMILARITY_THRESHOLD
+        })
+        
+        typer.echo(f"{video_a.name} vs {video_b.name}: {similarity:.3f}")
 
-        # Check if score meets threshold
-        if score >= SIMILARITY_THRESHOLD:
-            match_data = {
-                "file_a": path_a,
-                "file_b": path_b,
-                "metrics": {"normalized_match_score": float(f"{score:.4f}")},
-            }
-            significant_matches.append(match_data)
+    # Generate output
+    typer.echo("\nGenerating output...")
+    output = generate_json_output_poc(results)
+    typer.echo(output)
 
-    # Generate and print JSON output
-    json_output = generate_json_output_poc(significant_matches)
-    print("\nFinal JSON Output:")
-    print(json_output)
+def main():
+    """
+    Main entry point for the CLI.
+    """
+    typer.run(cli)
 
 
 if __name__ == "__main__":
-    typer.run(main)
-
+    main()

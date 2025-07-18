@@ -9,8 +9,10 @@ import numpy as np
 def test_extract_aggregated_features_success(video_file):
     features = extract_aggregated_features(video_file)
     assert features is not None
-    assert isinstance(features, np.ndarray)
-    assert features.shape[1] == 32  # ORB descriptors are 32 elements
+    assert isinstance(features, list)
+    assert len(features) > 0
+    assert all(isinstance(scene_features, np.ndarray) for scene_features in features)
+    assert all(scene_features.shape[1] == 32 for scene_features in features)  # ORB descriptors are 32 elements
 
 
 def test_extract_aggregated_features_corrupted(corrupted_video_file):
@@ -62,33 +64,33 @@ def test_extract_aggregated_features_frame_read_failure(
 
 
 def test_compare_features_valid_descriptors():
-    # Create two sets of random descriptors
-    descriptors_a = np.random.rand(100, 32).astype(np.uint8)
-    descriptors_b = np.random.rand(100, 32).astype(np.uint8)
+    # Create two sets of scene-based descriptors
+    descriptors_a = [np.random.rand(50, 32).astype(np.uint8), np.random.rand(30, 32).astype(np.uint8)]
+    descriptors_b = [np.random.rand(45, 32).astype(np.uint8), np.random.rand(35, 32).astype(np.uint8)]
 
     score = compare_features(descriptors_a, descriptors_b)
     assert 0.0 <= score <= 1.0
 
 
 def test_compare_features_empty_descriptor_a():
-    descriptors_a = np.array([])
-    descriptors_b = np.random.rand(100, 32).astype(np.uint8)
+    descriptors_a = []
+    descriptors_b = [np.random.rand(100, 32).astype(np.uint8)]
 
     score = compare_features(descriptors_a, descriptors_b)
     assert score == 0.0
 
 
 def test_compare_features_empty_descriptor_b():
-    descriptors_a = np.random.rand(100, 32).astype(np.uint8)
-    descriptors_b = np.array([])
+    descriptors_a = [np.random.rand(100, 32).astype(np.uint8)]
+    descriptors_b = []
 
     score = compare_features(descriptors_a, descriptors_b)
     assert score == 0.0
 
 
 def test_compare_features_both_empty():
-    descriptors_a = np.array([])
-    descriptors_b = np.array([])
+    descriptors_a = []
+    descriptors_b = []
 
     score = compare_features(descriptors_a, descriptors_b)
     assert score == 0.0
@@ -96,14 +98,14 @@ def test_compare_features_both_empty():
 
 def test_compare_features_none_descriptor_a():
     descriptors_a = None
-    descriptors_b = np.random.rand(100, 32).astype(np.uint8)
+    descriptors_b = [np.random.rand(100, 32).astype(np.uint8)]
 
     score = compare_features(descriptors_a, descriptors_b)
     assert score == 0.0
 
 
 def test_compare_features_none_descriptor_b():
-    descriptors_a = np.random.rand(100, 32).astype(np.uint8)
+    descriptors_a = [np.random.rand(100, 32).astype(np.uint8)]
     descriptors_b = None
 
     score = compare_features(descriptors_a, descriptors_b)
