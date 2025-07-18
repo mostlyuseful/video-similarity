@@ -56,7 +56,7 @@ def extract_aggregated_features(video_path: str) -> np.ndarray | None:
         return None
 
 
-def compare_features_poc(
+def compare_features(
     descriptors_a: Optional[np.ndarray], descriptors_b: Optional[np.ndarray]
 ) -> float:
     if descriptors_a is None or descriptors_b is None:

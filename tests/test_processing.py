@@ -1,7 +1,7 @@
 from unittest.mock import patch, MagicMock
 from video_similarity.processing import (
     extract_aggregated_features,
-    compare_features_poc,
+    compare_features,
 )
 import numpy as np
 
@@ -61,60 +61,60 @@ def test_extract_aggregated_features_frame_read_failure(
     assert features is None
 
 
-def test_compare_features_poc_valid_descriptors():
+def test_compare_features_valid_descriptors():
     # Create two sets of random descriptors
     descriptors_a = np.random.rand(100, 32).astype(np.uint8)
     descriptors_b = np.random.rand(100, 32).astype(np.uint8)
 
-    score = compare_features_poc(descriptors_a, descriptors_b)
+    score = compare_features(descriptors_a, descriptors_b)
     assert 0.0 <= score <= 1.0
 
 
-def test_compare_features_poc_empty_descriptor_a():
+def test_compare_features_empty_descriptor_a():
     descriptors_a = np.array([])
     descriptors_b = np.random.rand(100, 32).astype(np.uint8)
 
-    score = compare_features_poc(descriptors_a, descriptors_b)
+    score = compare_features(descriptors_a, descriptors_b)
     assert score == 0.0
 
 
-def test_compare_features_poc_empty_descriptor_b():
+def test_compare_features_empty_descriptor_b():
     descriptors_a = np.random.rand(100, 32).astype(np.uint8)
     descriptors_b = np.array([])
 
-    score = compare_features_poc(descriptors_a, descriptors_b)
+    score = compare_features(descriptors_a, descriptors_b)
     assert score == 0.0
 
 
-def test_compare_features_poc_both_empty():
+def test_compare_features_both_empty():
     descriptors_a = np.array([])
     descriptors_b = np.array([])
 
-    score = compare_features_poc(descriptors_a, descriptors_b)
+    score = compare_features(descriptors_a, descriptors_b)
     assert score == 0.0
 
 
-def test_compare_features_poc_none_descriptor_a():
+def test_compare_features_none_descriptor_a():
     descriptors_a = None
     descriptors_b = np.random.rand(100, 32).astype(np.uint8)
 
-    score = compare_features_poc(descriptors_a, descriptors_b)
+    score = compare_features(descriptors_a, descriptors_b)
     assert score == 0.0
 
 
-def test_compare_features_poc_none_descriptor_b():
+def test_compare_features_none_descriptor_b():
     descriptors_a = np.random.rand(100, 32).astype(np.uint8)
     descriptors_b = None
 
-    score = compare_features_poc(descriptors_a, descriptors_b)
+    score = compare_features(descriptors_a, descriptors_b)
     assert score == 0.0
 
 
-def test_compare_features_poc_both_none():
+def test_compare_features_both_none():
     descriptors_a = None
     descriptors_b = None
 
-    score = compare_features_poc(descriptors_a, descriptors_b)
+    score = compare_features(descriptors_a, descriptors_b)
     assert score == 0.0
 
 

@@ -1,7 +1,7 @@
 import typer
 from dataclasses import dataclass
 from pathlib import Path
-from .processing import extract_aggregated_features, compare_features_poc
+from .processing import extract_aggregated_features, compare_features
 import itertools
 from .output import generate_json_output_poc
 
@@ -58,7 +58,7 @@ def main(videos: list[str] = typer.Argument(..., help="Paths to video files")):
     significant_matches = []
     video_paths = list(video_features.keys())
     for path_a, path_b in itertools.combinations(video_paths, 2):
-        score = compare_features_poc(video_features[path_a], video_features[path_b])
+        score = compare_features(video_features[path_a], video_features[path_b])
         print(f"{path_a} vs {path_b} - Score: {score:.4f}")
 
         # Check if score meets threshold
@@ -78,4 +78,4 @@ def main(videos: list[str] = typer.Argument(..., help="Paths to video files")):
 
 if __name__ == "__main__":
     typer.run(main)
-    
+

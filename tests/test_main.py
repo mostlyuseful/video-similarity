@@ -29,7 +29,7 @@ def test_parse_and_validate_args_with_valid_and_invalid_files(tmp_path):
 
 @patch("video_similarity.main.parse_and_validate_args")
 @patch("video_similarity.main.extract_aggregated_features")
-@patch("video_similarity.main.compare_features_poc")
+@patch("video_similarity.main.compare_features")
 @patch("video_similarity.main.generate_json_output_poc")
 def test_main_with_insufficient_valid_videos(
     mock_gen_json, mock_compare, mock_extract, mock_parse_args, capsys
@@ -51,7 +51,7 @@ def test_main_with_insufficient_valid_videos(
 
 @patch("video_similarity.main.parse_and_validate_args")
 @patch("video_similarity.main.extract_aggregated_features")
-@patch("video_similarity.main.compare_features_poc")
+@patch("video_similarity.main.compare_features")
 @patch("video_similarity.main.generate_json_output_poc")
 def test_main_with_feature_extraction_failure(
     mock_gen_json, mock_compare, mock_extract, mock_parse_args, capsys
@@ -77,7 +77,7 @@ def test_main_with_feature_extraction_failure(
 
 @patch("video_similarity.main.parse_and_validate_args")
 @patch("video_similarity.main.extract_aggregated_features")
-@patch("video_similarity.main.compare_features_poc")
+@patch("video_similarity.main.compare_features")
 @patch("video_similarity.main.generate_json_output_poc")
 def test_main_with_successful_comparison(
     mock_gen_json, mock_compare, mock_extract, mock_parse_args, capsys
