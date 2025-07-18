@@ -14,6 +14,8 @@ dependencies = [
     "pytest>=8.4.1",
     "pytest-cov>=6.2.1",
     "scenedetect[opencv]>=0.6.6",
+    "tqdm>=4.67.1",
+    "typer>=0.16.0",
 ]
 
 [project.scripts]
