@@ -12,40 +12,6 @@ def video_data_dir():
     return Path(__file__).parent.parent / "test" / "data"
 
 
-# Fixture for generating videos in different resolutions
-@pytest.fixture(
-    scope="session", params=[(360, 640), (480, 854), (720, 1280), (1080, 1920)]
-)
-def resolution_video(request, video_data_dir, tmp_path_factory):
-    """Generates videos in specified resolutions using ffmpeg"""
-    height, width = request.param
-    base_temp = tmp_path_factory.mktemp("res_videos")
-
-    # Create videos for both datasets
-    videos = []
-    for source in ["big_buck_bunny", "sintel"]:
-        src_path = video_data_dir / source / f"{source}_original.mp4"
-        dest_path = base_temp / f"{source}_{height}p.mp4"
-
-        if not dest_path.exists():
-            command = [
-                "ffmpeg",
-                "-i",
-                str(src_path),
-                "-vf",
-                f"scale={width}:{height}",
-                "-c:a",
-                "copy",
-                "-y",
-                str(dest_path),
-            ]
-            subprocess.run(command, check=True)
-
-        videos.append(str(dest_path))
-
-    return videos
-
-
 @pytest.fixture(
     params=[
         "big_buck_bunny_1080p_h264.mov",

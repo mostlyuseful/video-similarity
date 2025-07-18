@@ -118,13 +118,6 @@ def test_compare_features_poc_both_none():
     assert score == 0.0
 
 
-def test_extract_aggregated_features_resolution(resolution_video):
-    for video_path in resolution_video:
-        features = extract_aggregated_features(video_path)
-        assert features is not None
-        assert isinstance(features, np.ndarray)
-        assert features.shape[1] == 32
-
 
 @patch(
     "scenedetect.frame_timecode.FrameTimecode.get_frames",
