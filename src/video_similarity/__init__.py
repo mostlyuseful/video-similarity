@@ -1,2 +1,1 @@
-def main() -> None:
-    print("Hello from video-similarity!")
+# Package initialization file
