@@ -8,6 +8,8 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "fastapi>=0.116.1",
+    "imagehash>=4.3.2",
     "numpy>=2.3.1",
     "opencv-python>=4.11.0.86",
     "opencv-stubs>=0.0.12",
@@ -24,4 +26,10 @@ video-similarity = "video_similarity.main:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "ipdb>=0.13.13",
+    "ipython>=9.4.0",
+]
 
