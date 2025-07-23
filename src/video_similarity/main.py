@@ -4,8 +4,11 @@ from pathlib import Path
 from .processing import extract_aggregated_features, compare_features
 import itertools
 from .output import generate_json_output_poc
+from . import inspection
 
 SIMILARITY_THRESHOLD = 0.5  # Configurable threshold
+
+app = typer.Typer()
 
 
 @dataclass
@@ -14,10 +17,16 @@ class VideoFile:
     is_valid: bool
 
 
-def cli(videos: list[str] = typer.Argument(..., help="List of video file paths"), frame_skip: int = typer.Option(0, help="Number of frames to skip during feature extraction")):
+@app.command()
+def compare(
+    videos: list[str] = typer.Argument(..., help="List of video file paths"),
+    frame_skip: int = typer.Option(
+        0, help="Number of frames to skip during feature extraction"
+    ),
+):
     """
     CLI entry point for video similarity comparison.
-    
+
     Args:
         videos: List of video file paths to compare
     """
@@ -26,7 +35,7 @@ def cli(videos: list[str] = typer.Argument(..., help="List of video file paths")
         raise typer.Exit(1)
 
     video_files = [Path(video) for video in videos]
-    
+
     # Validate files exist
     for video_file in video_files:
         if not video_file.exists():
@@ -51,18 +60,17 @@ def cli(videos: list[str] = typer.Argument(..., help="List of video file paths")
     typer.echo("Comparing videos...")
     results = []
     for video_a, video_b in itertools.combinations(video_features.keys(), 2):
-        similarity = compare_features(
-            video_features[video_a], 
-            video_features[video_b]
+        similarity = compare_features(video_features[video_a], video_features[video_b])
+
+        results.append(
+            {
+                "video_a": str(video_a),
+                "video_b": str(video_b),
+                "similarity": float(similarity),
+                "is_similar": similarity >= SIMILARITY_THRESHOLD,
+            }
         )
-        
-        results.append({
-            "video_a": str(video_a),
-            "video_b": str(video_b),
-            "similarity": float(similarity),
-            "is_similar": similarity >= SIMILARITY_THRESHOLD
-        })
-        
+
         typer.echo(f"{video_a.name} vs {video_b.name}: {similarity:.3f}")
 
     # Generate output
@@ -70,11 +78,34 @@ def cli(videos: list[str] = typer.Argument(..., help="List of video file paths")
     output = generate_json_output_poc(results)
     typer.echo(output)
 
+
+@app.command()
+def inspect(
+    report_file: Path = typer.Option(
+        ...,
+        "--report",
+        "-r",
+        help="Path to the czkawka JSON report.",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+    ),
+    host: str = typer.Option("127.0.0.1", help="Host to bind the server to."),
+    port: int = typer.Option(8000, help="Port to run the server on."),
+):
+    """
+    Run the video similarity inspection server.
+    """
+    inspection.main(report_file=report_file, host=host, port=port)
+
+
 def main():
     """
     Main entry point for the CLI.
     """
-    typer.run(cli)
+    app()
 
 
 if __name__ == "__main__":

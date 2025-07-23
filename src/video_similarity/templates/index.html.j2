@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Similarity Inspector</title>
+    <style>
+        body { font-family: sans-serif; }
+        .group { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }
+        .video-row { display: flex; align-items: center; margin-bottom: 5px; }
+        .thumbnails { display: flex; flex-wrap: wrap; }
+        .thumbnail { max-width: 200px; margin-right: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Video Similarity Inspector</h1>
+    <form action="/delete" method="post">
+        {% for group in report %}
+        <div class="group">
+            <h2>Group {{ loop.index }}</h2>
+            <div class="video-row">
+                <a href="/group/{{ loop.index0 }}">
+                    <img src="/thumbnail/{{ group[0].id }}/0" class="thumbnail">
+                    <img src="/thumbnail/{{ group[0].id }}/1" class="thumbnail">
+                    <img src="/thumbnail/{{ group[0].id }}/2" class="thumbnail">
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </form>
+
+    {% if group_details %}
+    <h2>Group {{ group_index + 1 }} Details</h2>
+    <form action="/delete" method="post">
+        <input type="hidden" name="group_index" value="{{ group_index }}">
+        <table>
+            {% for video in group_details %}
+            <tr>
+                <td><input type="radio" name="keep" value="{{ video.path }}" {% if loop.first %}checked{% endif %}></td>
+                <td>{{ video.path }}</td>
+                <td>
+                    <div class="thumbnails">
+                        {% for i in range(20) %}
+                        <img src="/thumbnail/{{ video.id }}/{{ i }}" class="thumbnail">
+                        {% endfor %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+        <button type="submit" name="dry_run" value="true">Dry Run</button>
+        <button type="submit">Delete</button>
+    </form>
+    {% endif %}
+</body>
+</html>
