@@ -177,7 +177,6 @@ async def get_thumbnail(video_id: str, thumb_index: int):
 
 @app.post("/delete")
 async def delete_videos(
-    request: Request,
     group_index: int = Form(...),
     keep: str = Form(...),
     dry_run: bool = Form(False),
@@ -208,8 +207,8 @@ async def delete_videos(
 
 
 def main(
-    report_file: Path = typer.Option(
-        Path(__file__).parent / "example-czkawka-report.json",
+    report: Path = typer.Option(
+        ...,
         help="Path to the czkawka JSON report.",
     ),
     host: str = "127.0.0.1",
@@ -219,12 +218,12 @@ def main(
     Run the video similarity inspection server.
     """
     global report_data, video_map
-    if report_file.exists():
-        with report_file.open("r") as f:
+    if report.exists():
+        with report.open("r") as f:
             raw_data = json.load(f)
             for group in tqdm(raw_data, desc="Processing groups"):
                 processed_group = []
-                for video_info in tqdm(group, desc="Processing videos", leave=False):
+                for video_info in tqdm(group, desc="Computing video hashes", leave=False):
                     path = Path(video_info["path"])
                     if path.exists():
                         video_id = get_video_id(path)
@@ -234,7 +233,7 @@ def main(
                 if processed_group:
                     report_data.append(processed_group)
     else:
-        typer.echo(f"Error: Report file {report_file} does not exist.", err=True)
+        typer.echo(f"Error: Report file {report} does not exist.", err=True)
         raise typer.Exit(1)
 
     import uvicorn
