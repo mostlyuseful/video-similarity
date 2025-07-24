@@ -18,13 +18,16 @@ import hashlib
 import json
 import os
 import random
+import threading
 from pathlib import Path
 
 import cv2
+import numpy as np
 import typer
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from tqdm import tqdm
 
 app = FastAPI()
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -38,6 +41,7 @@ THUMBNAIL_DIR.mkdir(parents=True, exist_ok=True)
 # This would be loaded from a file in a real app
 report_data = []
 video_map = {}
+video_locks = {}
 
 
 def get_video_id(video_path: Path) -> str:
@@ -63,37 +67,72 @@ def get_video_id(video_path: Path) -> str:
 
 
 def generate_thumbnail(video_path: Path, video_id: str, thumb_index: int):
+    """
+    Generates all thumbnails for a video at once, if they don't exist.
+    Uses a lock to prevent race conditions.
+    """
     thumb_path = THUMBNAIL_DIR / video_id / f"{thumb_index}.jpg"
     if thumb_path.exists():
         return thumb_path
 
-    thumb_path.parent.mkdir(parents=True, exist_ok=True)
+    if video_id not in video_locks:
+        video_locks[video_id] = threading.Lock()
 
-    cap = cv2.VideoCapture(str(video_path))
-    if not cap.isOpened():
-        return None
+    with video_locks[video_id]:
+        # Re-check if thumbnails were generated while waiting for the lock
+        if thumb_path.exists():
+            return thumb_path
 
-    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    if frame_count == 0:
-        return None
+        thumb_dir = THUMBNAIL_DIR / video_id
+        thumb_dir.mkdir(parents=True, exist_ok=True)
 
-    if thumb_index < 3:  # For the main page view
-        if thumb_index == 0:
-            frame_pos = int(frame_count * 0.1)  # Near beginning
-        elif thumb_index == 1:
-            frame_pos = int(frame_count * 0.5)  # Middle
-        else:
-            frame_pos = int(frame_count * 0.9)  # Near end
-    else:  # For the detail view, 20 thumbnails
-        frame_pos = int(frame_count * (thumb_index / 20.0))
+        cap = cv2.VideoCapture(str(video_path))
+        if not cap.isOpened():
+            return None
 
-    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_pos)
-    ret, frame = cap.read()
-    cap.release()
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        if frame_count == 0:
+            cap.release()
+            return None
 
-    if ret:
-        cv2.imwrite(str(thumb_path), frame)
-        return thumb_path
+        # Generate all 23 thumbnails (0-2 for summary, 3-22 for detail)
+        for i in range(23):
+            current_thumb_path = thumb_dir / f"{i}.jpg"
+            if current_thumb_path.exists():
+                continue
+
+            if i < 3:  # For the main page view
+                if i == 0:
+                    frame_pos = int(frame_count * 0.1)  # Near beginning
+                elif i == 1:
+                    frame_pos = int(frame_count * 0.5)  # Middle
+                else:
+                    frame_pos = int(frame_count * 0.9)  # Near end
+            else:  # For the detail view, 20 thumbnails
+                frame_pos = int(frame_count * ((i - 3) / 19.0))
+
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_pos)
+            ret, frame = cap.read()
+
+            if ret:
+                # First, resize the frame to a thumbnail size, keeping aspect ratio:
+                # Resize frame to fit within 128x128, keeping aspect ratio
+                h, w = frame.shape[:2]
+                scale = min(128 / w, 128 / h)
+                new_w, new_h = int(w * scale), int(h * scale)
+                resized = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
+                # Place resized image on a 128x128 black canvas, centered
+                thumb = 255 * np.ones((128, 128, 3), dtype=np.uint8)
+                y_off = (128 - new_h) // 2
+                x_off = (128 - new_w) // 2
+                thumb[y_off:y_off+new_h, x_off:x_off+new_w] = resized
+                # Then, convert the frame to JPEG format and save it:
+                cv2.imwrite(str(current_thumb_path), thumb)
+
+        cap.release()
+
+        if thumb_path.exists():
+            return thumb_path
     return None
 
 @app.get("/", response_class=HTMLResponse)
@@ -129,6 +168,7 @@ async def get_thumbnail(video_id: str, thumb_index: int):
     video_path = Path(video_info["path"])
 
     thumb_path = generate_thumbnail(video_path, video_id, thumb_index)
+
     if thumb_path and thumb_path.exists():
         return FileResponse(thumb_path)
     # Return a placeholder if thumbnail generation fails
@@ -182,9 +222,9 @@ def main(
     if report_file.exists():
         with report_file.open("r") as f:
             raw_data = json.load(f)
-            for group in raw_data:
+            for group in tqdm(raw_data, desc="Processing groups"):
                 processed_group = []
-                for video_info in group:
+                for video_info in tqdm(group, desc="Processing videos", leave=False):
                     path = Path(video_info["path"])
                     if path.exists():
                         video_id = get_video_id(path)
