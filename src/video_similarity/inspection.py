@@ -19,12 +19,13 @@ import json
 import os
 import random
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import cv2
 import numpy as np
 import typer
-from fastapi import FastAPI, Form, Request
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from tqdm import tqdm
@@ -95,8 +96,8 @@ def generate_thumbnail(video_path: Path, video_id: str, thumb_index: int):
             cap.release()
             return None
 
-        # Generate all 23 thumbnails (0-2 for summary, 3-22 for detail)
-        for i in range(23):
+        # Generate all 13 thumbnails (0-2 for summary, 3-12 for detail)
+        for i in range(13):
             current_thumb_path = thumb_dir / f"{i}.jpg"
             if current_thumb_path.exists():
                 continue
@@ -108,23 +109,25 @@ def generate_thumbnail(video_path: Path, video_id: str, thumb_index: int):
                     frame_pos = int(frame_count * 0.5)  # Middle
                 else:
                     frame_pos = int(frame_count * 0.9)  # Near end
-            else:  # For the detail view, 20 thumbnails
-                frame_pos = int(frame_count * ((i - 3) / 19.0))
+            else:  # For the detail view, 10 thumbnails
+                frame_pos = int(frame_count * ((i - 3) / 9.0))
 
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame_pos)
             ret, frame = cap.read()
 
+            thumbnail_width, thumbnail_height = (320, 180) # 16:9 aspect ratio
+
             if ret:
                 # First, resize the frame to a thumbnail size, keeping aspect ratio:
-                # Resize frame to fit within 128x128, keeping aspect ratio
+                # Resize frame to fit within thumbnail_size, keeping aspect ratio
                 h, w = frame.shape[:2]
-                scale = min(128 / w, 128 / h)
+                scale = min(thumbnail_width / w, thumbnail_height / h)
                 new_w, new_h = int(w * scale), int(h * scale)
                 resized = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
-                # Place resized image on a 128x128 black canvas, centered
-                thumb = 255 * np.ones((128, 128, 3), dtype=np.uint8)
-                y_off = (128 - new_h) // 2
-                x_off = (128 - new_w) // 2
+                # Place resized image on a thumbnail canvas, centered
+                thumb = 255 * np.ones((thumbnail_height, thumbnail_width, 3), dtype=np.uint8)
+                y_off = (thumbnail_height - new_h) // 2
+                x_off = (thumbnail_width - new_w) // 2
                 thumb[y_off:y_off+new_h, x_off:x_off+new_w] = resized
                 # Then, convert the frame to JPEG format and save it:
                 cv2.imwrite(str(current_thumb_path), thumb)
@@ -138,24 +141,8 @@ def generate_thumbnail(video_path: Path, video_id: str, thumb_index: int):
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     return templates.TemplateResponse(
-        "index.html.j2", {"request": request, "report": report_data}
-    )
-
-
-@app.get("/group/{group_index}", response_class=HTMLResponse)
-async def read_group(request: Request, group_index: int):
-    if 0 <= group_index < len(report_data):
-        group_details = report_data[group_index]
-    else:
-        group_details = None
-    return templates.TemplateResponse(
         "index.html.j2",
-        {
-            "request": request,
-            "report": report_data,
-            "group_details": group_details,
-            "group_index": group_index,
-        },
+        {"request": request, "report": report_data, "enumerate": enumerate},
     )
 
 
@@ -176,30 +163,52 @@ async def get_thumbnail(video_id: str, thumb_index: int):
 
 
 @app.post("/delete")
-async def delete_videos(
-    group_index: int = Form(...),
-    keep: str = Form(...),
-    dry_run: bool = Form(False),
-):
-    group = report_data[group_index]
+async def delete_videos(request: Request):
+    form_data = await request.form()
+    dry_run = "dry_run" in form_data
+
+    paths_to_delete_from_form = {key for key in form_data if key != "dry_run"}
     files_to_delete = []
-    for video in group:
-        if video["path"] != keep:
-            files_to_delete.append(Path(video["path"]))
+
+    for group in report_data:
+        group_paths = {video["path"] for video in group}
+        deletions_in_group = group_paths.intersection(paths_to_delete_from_form)
+
+        if not deletions_in_group:
+            continue
+
+        if len(deletions_in_group) == len(group_paths):
+            print(
+                "WARNING: All videos in a group were selected for deletion. "
+                "No action will be taken for this group:"
+            )
+            for path in sorted(list(group_paths)):
+                print(f"  - {path}")
+            continue
+
+        for path_str in deletions_in_group:
+            files_to_delete.append(Path(path_str))
 
     if dry_run:
         print("--- DRY RUN ---")
-        print(f"Keeping: {keep}")
-        for f in files_to_delete:
-            print(f"Would delete: {f}")
+        if files_to_delete:
+            print("Keeping all other files. Would delete:")
+            for f in files_to_delete:
+                print(f"  - {f}")
+        else:
+            print("No files marked for deletion.")
         print("-----------------")
     else:
-        for f in files_to_delete:
-            try:
-                print(f"Deleting: {f}")
-                f.unlink()
-            except OSError as e:
-                print(f"Error deleting {f}: {e}")
+        if files_to_delete:
+            print("Deleting files:")
+            for f in files_to_delete:
+                try:
+                    print(f"  - Deleting: {f}")
+                    f.unlink()
+                except OSError as e:
+                    print(f"    Error deleting {f}: {e}")
+        else:
+            print("No files marked for deletion.")
 
     # In a real app, you might want to remove the group from the report
     # and save the report back to disk. For this example, we just redirect.
@@ -222,14 +231,28 @@ def main(
         with report.open("r") as f:
             raw_data = json.load(f)
             for group in tqdm(raw_data, desc="Processing groups"):
+                if len(report_data) >= 10:
+                    typer.echo("Maximum number of groups reached (10). Stopping processing.", err=True)
+                    break
                 processed_group = []
-                for video_info in tqdm(group, desc="Computing video hashes", leave=False):
-                    path = Path(video_info["path"])
-                    if path.exists():
-                        video_id = get_video_id(path)
+                # Process videos in the group using a thread pool
+                with ThreadPoolExecutor(max_workers=10) as executor:
+                    # Create a list of futures for video processing
+                    futures = []
+                    for video_info in group:
+                        path = Path(video_info["path"])
+                        if path.exists():
+                            # Submit the get_video_id task to the thread pool
+                            future = executor.submit(get_video_id, path)
+                            futures.append((future, video_info))
+                    
+                    # Process completed futures with progress bar
+                    for future, video_info in tqdm(futures, desc="Computing video hashes", leave=False):
+                        video_id = future.result()
                         video_info["id"] = video_id
                         video_map[video_id] = video_info
                         processed_group.append(video_info)
+                
                 if processed_group:
                     report_data.append(processed_group)
     else:

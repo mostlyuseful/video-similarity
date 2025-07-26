@@ -2,55 +2,52 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Video Similarity Inspector</title>
     <style>
-        body { font-family: sans-serif; }
-        .group { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }
-        .video-row { display: flex; align-items: center; margin-bottom: 5px; }
-        .thumbnails { display: flex; flex-wrap: wrap; }
-        .thumbnail { max-width: 200px; margin-right: 5px; }
+        body { font-family: sans-serif; margin: 2em; }
+        .group { border: 1px solid #ccc; padding: 1em; margin-bottom: 1em; border-radius: 5px; }
+        .video-row { display: flex; align-items: center; margin-bottom: 10px; }
+        .thumbnails { display: flex; flex-wrap: nowrap; overflow-x: auto; }
+        .thumbnail { width: 128px; height: 128px; margin-right: 5px; }
+        .video-info { margin-left: 1em; }
+        .delete-form { margin-top: 2em; }
+        .delete-button { padding: 10px 20px; font-size: 1.2em; cursor: pointer; }
     </style>
 </head>
 <body>
-    <h1>Video Similarity Inspector</h1>
-    <form action="/delete" method="post">
-        {% for group in report %}
+    <h1>Video Similarity Report</h1>
+
+    <form action="/delete" method="post" class="delete-form">
+        {% for i, group in enumerate(report) %}
         <div class="group">
-            <h2>Group {{ loop.index }}</h2>
+            <h2>Group {{ i + 1 }}</h2>
+            {% for video in group %}
             <div class="video-row">
-                <a href="/group/{{ loop.index0 }}">
-                    <img src="/thumbnail/{{ group[0].id }}/0" class="thumbnail">
-                    <img src="/thumbnail/{{ group[0].id }}/1" class="thumbnail">
-                    <img src="/thumbnail/{{ group[0].id }}/2" class="thumbnail">
-                </a>
+                <input type="checkbox" name="{{ video.path }}" value="true" id="delete_{{ i }}_{{ loop.index0 }}">
+                <div class="thumbnails">
+                    {% for thumb_idx in range(3, 13) %}
+                    <img src="/thumbnail/{{ video.id }}/{{ thumb_idx }}" alt="Thumbnail {{ thumb_idx }} for {{ video.path }}" class="thumbnail">
+                    {% endfor %}
+                </div>
+                <div class="video-info">
+                    <label for="delete_{{ i }}_{{ loop.index0 }}">
+                        <strong>Path:</strong> {{ video.path }}<br>
+                        <strong>Size:</strong> {{ "%.2f" | format(video.size / 1024 / 1024) }} MB
+                    </label>
+                </div>
             </div>
+            {% endfor %}
         </div>
         {% endfor %}
+
+        <hr>
+        <div>
+            <input type="checkbox" id="dry_run" name="dry_run" value="true" checked>
+            <label for="dry_run">Dry Run (only print actions)</label>
+        </div>
+        <br>
+        <button type="submit" class="delete-button">Delete Selected Files</button>
     </form>
 
-    {% if group_details %}
-    <h2>Group {{ group_index + 1 }} Details</h2>
-    <form action="/delete" method="post">
-        <input type="hidden" name="group_index" value="{{ group_index }}">
-        <table>
-            {% for video in group_details %}
-            <tr>
-                <td><input type="radio" name="keep" value="{{ video.path }}" {% if loop.first %}checked{% endif %}></td>
-                <td>{{ video.path }}</td>
-                <td>
-                    <div class="thumbnails">
-                        {% for i in range(20) %}
-                        <img src="/thumbnail/{{ video.id }}/{{ i }}" class="thumbnail">
-                        {% endfor %}
-                    </div>
-                </td>
-            </tr>
-            {% endfor %}
-        </table>
-        <button type="submit" name="dry_run" value="true">Dry Run</button>
-        <button type="submit">Delete</button>
-    </form>
-    {% endif %}
 </body>
 </html>
