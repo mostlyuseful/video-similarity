@@ -53,7 +53,7 @@ def get_video_id(video_path: Path) -> str:
     SHA256 hash of the strips is computed
     """
     n_strips = 3
-    num_bytes = 100*1024
+    num_bytes = 25*1024
     if not video_path.exists():
         return ""
     hasher = hashlib.sha256()
@@ -96,21 +96,13 @@ def generate_thumbnail(video_path: Path, video_id: str, thumb_index: int):
             cap.release()
             return None
 
-        # Generate all 13 thumbnails (0-2 for summary, 3-12 for detail)
-        for i in range(13):
+        # Generate thumbnails
+        for i in range(10):
             current_thumb_path = thumb_dir / f"{i}.jpg"
             if current_thumb_path.exists():
                 continue
 
-            if i < 3:  # For the main page view
-                if i == 0:
-                    frame_pos = int(frame_count * 0.1)  # Near beginning
-                elif i == 1:
-                    frame_pos = int(frame_count * 0.5)  # Middle
-                else:
-                    frame_pos = int(frame_count * 0.9)  # Near end
-            else:  # For the detail view, 10 thumbnails
-                frame_pos = int(frame_count * ((i - 3) / 9.0))
+            frame_pos = np.linspace(25, frame_count - 25, num=10, dtype=int)[i]
 
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame_pos)
             ret, frame = cap.read()
@@ -231,8 +223,8 @@ def main(
         with report.open("r") as f:
             raw_data = json.load(f)
             for group in tqdm(raw_data, desc="Processing groups"):
-                if len(report_data) >= 10:
-                    typer.echo("Maximum number of groups reached (10). Stopping processing.", err=True)
+                if len(report_data) >= 50:
+                    typer.echo("Maximum number of groups reached (50). Stopping processing.", err=True)
                     break
                 processed_group = []
                 # Process videos in the group using a thread pool
@@ -253,7 +245,7 @@ def main(
                         video_map[video_id] = video_info
                         processed_group.append(video_info)
                 
-                if processed_group:
+                if processed_group and len(processed_group) > 1:
                     report_data.append(processed_group)
     else:
         typer.echo(f"Error: Report file {report} does not exist.", err=True)
