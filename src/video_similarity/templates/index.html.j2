@@ -6,12 +6,14 @@
     <style>
         body { font-family: sans-serif; margin: 2em; }
         .group { border: 1px solid #ccc; padding: 1em; margin-bottom: 1em; border-radius: 5px; }
-        .video-row { display: flex; align-items: center; margin-bottom: 10px; }
-        .thumbnails { display: flex; flex-wrap: nowrap; overflow-x: auto; }
-        .thumbnail { width: 128px; height: 128px; margin-right: 5px; }
-        .video-info { margin-left: 1em; }
+        .thumbnails { display: flex; flex-wrap: nowrap; }
+        .thumbnail { margin-right: 5px; }
+        .video-info { white-space: nowrap; }
         .delete-form { margin-top: 2em; }
         .delete-button { padding: 10px 20px; font-size: 1.2em; cursor: pointer; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f2f2f2; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -21,22 +23,37 @@
         {% for i, group in enumerate(report) %}
         <div class="group">
             <h2>Group {{ i + 1 }}</h2>
-            {% for video in group %}
-            <div class="video-row">
-                <input type="checkbox" name="{{ video.path }}" value="true" id="delete_{{ i }}_{{ loop.index0 }}">
-                <div class="thumbnails">
-                    {% for thumb_idx in range(3, 13) %}
-                    <img src="/thumbnail/{{ video.id }}/{{ thumb_idx }}" alt="Thumbnail {{ thumb_idx }} for {{ video.path }}" class="thumbnail">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Select</th>
+                        <th>Video Info</th>
+                        <th>Thumbnails (Time Points)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for video in group %}
+                    <tr>
+                        <td>
+                            <input type="checkbox" name="{{ video.path }}" value="true" id="delete_{{ i }}_{{ loop.index0 }}">
+                        </td>
+                        <td>
+                            <label for="delete_{{ i }}_{{ loop.index0 }}">
+                                <strong>Path:</strong> {{ video.path }}<br>
+                                <strong>Size:</strong> {{ "%.2f" | format(video.size / 1024 / 1024) }} MB
+                            </label>
+                        </td>
+                        <td>
+                            <div class="thumbnails">
+                                {% for thumb_idx in range(0,10) %}
+                                <img src="/thumbnail/{{ video.id }}/{{ thumb_idx }}" alt="Thumbnail {{ thumb_idx }} for {{ video.path }}" class="thumbnail">
+                                {% endfor %}
+                            </div>
+                        </td>
+                    </tr>
                     {% endfor %}
-                </div>
-                <div class="video-info">
-                    <label for="delete_{{ i }}_{{ loop.index0 }}">
-                        <strong>Path:</strong> {{ video.path }}<br>
-                        <strong>Size:</strong> {{ "%.2f" | format(video.size / 1024 / 1024) }} MB
-                    </label>
-                </div>
-            </div>
-            {% endfor %}
+                </tbody>
+            </table>
         </div>
         {% endfor %}
 
