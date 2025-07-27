@@ -14,7 +14,6 @@ The web interface provides:
 
 import hashlib
 import json
-import os
 import random
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -28,13 +27,12 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from tqdm import tqdm
 
+from video_similarity.cache import get_video_metadata, save_video_metadata
+from video_similarity.config import THUMBNAIL_DIR
+
 app = FastAPI()
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
-# --- Configuration ---
-CACHE_DIR = Path(os.getenv("XDG_CACHE_DIR", Path.home() / ".cache")) / "video-similarity"
-THUMBNAIL_DIR = CACHE_DIR / "thumbnails"
-THUMBNAIL_DIR.mkdir(parents=True, exist_ok=True)
 
 # --- State ---
 # This would be loaded from a file in a real app
@@ -236,7 +234,24 @@ async def get_group_detail(request: Request, group_id: int):
     for video_info in group:
         video_path = Path(video_info["path"])
         
-        # Get video metadata
+        # Try to get metadata from cache first
+        cached_data = get_video_metadata(video_path)
+        if cached_data:
+            videos.append({
+                "path": str(video_path),
+                "src": f"file://{video_path.absolute()}",  # Direct file URL for video playback
+                "width": cached_data["width"],
+                "height": cached_data["height"],
+                "fps": 0,  # Not cached, will be 0
+                "duration": 0,  # Not cached, will be 0
+                "size": video_path.stat().st_size,
+                "bitrate": cached_data["bitrate"],
+                "id": video_info["id"],
+                "dimensions": cached_data["dimensions"]
+            })
+            continue
+            
+        # Cache miss, get metadata from file
         cap = cv2.VideoCapture(str(video_path))
         if not cap.isOpened():
             cap.release()
@@ -261,6 +276,9 @@ async def get_group_detail(request: Request, group_id: int):
         
         cap.release()
         
+        # Save to cache
+        save_video_metadata(video_path, video_info["id"], width, height, bitrate)
+        
         # Add video data to the list
         videos.append({
             "path": str(video_path),
@@ -282,7 +300,8 @@ async def get_group_detail(request: Request, group_id: int):
             "request": request,
             "group_name": group_name,
             "videos": videos,
-            "group_id": group_id
+            "group_id": group_id,
+            "enumerate": enumerate,
         }
     )
 
@@ -298,7 +317,15 @@ def generate_all_thumbnails(report_data):
             for video_info in group:
                 video_path = Path(video_info["path"])
                 if video_path.exists():
-                    video_id = video_info.get("id", get_video_id(video_path))
+                    # Check cache first
+                    cached_data = get_video_metadata(video_path)
+                    if cached_data:
+                        video_id = cached_data["video_id"]
+                    else:
+                        # Cache miss, compute video ID
+                        video_id = get_video_id(video_path)
+                        # We don't have the full metadata here, so we can't save to cache yet
+                        # The cache will be updated when the video detail page is loaded
                     video_info["id"] = video_id
                     futures.append(executor.submit(generate_thumbnail, video_path, video_id, 0))
             # Wait for all futures to complete
@@ -322,7 +349,7 @@ def main(
             raw_data = json.load(f)
             random.shuffle(raw_data)  # Shuffle the groups for random order
             for group in tqdm(raw_data, desc="Processing groups"):
-                if len(report_data) >= 1000:
+                if len(report_data) >= 10:
                     typer.echo("Reached maximum number of groups to process. Stopping further processing.")
                     break
 
@@ -334,9 +361,20 @@ def main(
                     for video_info in group:
                         path = Path(video_info["path"])
                         if path.exists():
-                            # Submit the get_video_id task to the thread pool
-                            future = executor.submit(get_video_id, path)
-                            futures.append((future, video_info))
+                            # Check cache first
+                            cached_data = get_video_metadata(path)
+                            if cached_data:
+                                video_id = cached_data["video_id"]
+                            else:
+                                # Cache miss, compute video ID
+                                future = executor.submit(get_video_id, path)
+                                futures.append((future, video_info))
+                                continue
+                                
+                            # Use cached video ID
+                            video_info["id"] = video_id
+                            video_map[video_id] = video_info
+                            processed_group.append(video_info)
                     
                     # Process completed futures with progress bar
                     for future, video_info in tqdm(futures, desc="Computing video hashes", leave=False):
@@ -344,17 +382,58 @@ def main(
                         video_info["id"] = video_id
                         video_map[video_id] = video_info
                         processed_group.append(video_info)
-                
-                if processed_group and len(processed_group) > 1:
-                    # Add dimensions to each video in the processed group
-                    for video_info in processed_group:
+                        
+                        # Get video metadata for caching
                         video_path = Path(video_info["path"])
                         cap = cv2.VideoCapture(str(video_path))
                         if cap.isOpened():
                             width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                             height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                            video_info["dimensions"] = f"{width}x{height}"
+                            # Try to get bitrate from video properties first
+                            bitrate_prop = cap.get(cv2.CAP_PROP_BITRATE)  # bits per second
+                            if bitrate_prop > 0:
+                                bitrate = bitrate_prop
+                            else:
+                                # Fall back to calculated bitrate from file size and duration
+                                file_size = video_path.stat().st_size  # Size in bytes
+                                frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                                fps = cap.get(cv2.CAP_PROP_FPS)
+                                duration = frame_count / fps if fps > 0 else 0
+                                bitrate = (file_size * 8) / duration if duration > 0 else 0  # bits per second
                             cap.release()
+                            
+                            # Save to cache
+                            save_video_metadata(video_path, video_id, width, height, bitrate)
+                
+                if processed_group and len(processed_group) > 1:
+                    # Add dimensions and bitrate to each video in the processed group
+                    for video_info in processed_group:
+                        video_path = Path(video_info["path"])
+                        cached_data = get_video_metadata(video_path)
+                        if cached_data:
+                            video_info["dimensions"] = f"{cached_data['width']}x{cached_data['height']}"
+                            video_info["bitrate"] = cached_data["bitrate"]
+                        else:
+                            # Fallback if not in cache for some reason
+                            cap = cv2.VideoCapture(str(video_path))
+                            if cap.isOpened():
+                                width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                                height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                                video_info["dimensions"] = f"{width}x{height}"
+                                
+                                bitrate_prop = cap.get(cv2.CAP_PROP_BITRATE)
+                                if bitrate_prop > 0:
+                                    video_info["bitrate"] = bitrate_prop
+                                else:
+                                    file_size = video_path.stat().st_size
+                                    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                                    fps = cap.get(cv2.CAP_PROP_FPS)
+                                    duration = frame_count / fps if fps > 0 else 0
+                                    video_info["bitrate"] = (file_size * 8) / duration if duration > 0 else 0
+                                cap.release()
+                            else:
+                                video_info["dimensions"] = "N/A"
+                                video_info["bitrate"] = 0
                     report_data.append(processed_group)
     else:
         typer.echo(f"Error: Report file {report} does not exist.", err=True)
