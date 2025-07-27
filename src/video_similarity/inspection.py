@@ -287,8 +287,8 @@ async def get_group_detail(request: Request, group_id: int):
                 "src": f"file://{video_path.absolute()}",  # Direct file URL for video playback
                 "width": cached_data["width"],
                 "height": cached_data["height"],
-                "fps": 0,  # Not cached, will be 0
-                "duration": 0,  # Not cached, will be 0
+                "fps": cached_data.get("fps", 0),
+                "duration": cached_data.get("duration", 0),
                 "size": video_path.stat().st_size,
                 "bitrate": cached_data["bitrate"],
                 "id": video_info["id"],
@@ -322,7 +322,7 @@ async def get_group_detail(request: Request, group_id: int):
         cap.release()
         
         # Save to cache
-        save_video_metadata(video_path, video_info["id"], width, height, bitrate)
+        save_video_metadata(video_path, video_info["id"], width, height, bitrate, duration, fps)
         
         # Add video data to the list
         videos.append({
@@ -335,7 +335,10 @@ async def get_group_detail(request: Request, group_id: int):
             "size": file_size,
             "bitrate": bitrate,
             "id": video_info["id"],
-            "dimensions": f"{width}x{height}"
+            "dimensions": f"{width}x{height}",
+            # Add explicit duration and fps for data attributes
+            "duration_value": duration,
+            "fps_value": fps
         })
     
     # Render the template with the group data
@@ -394,7 +397,7 @@ def main(
             raw_data = json.load(f)
             random.shuffle(raw_data)  # Shuffle the groups for random order
             for group in tqdm(raw_data, desc="Processing groups"):
-                if len(report_data) >= 3:
+                if len(report_data) >= 100:
                     typer.echo("Reached maximum number of groups to process. Stopping further processing.")
                     break
 
@@ -438,6 +441,8 @@ def main(
                             bitrate_prop = cap.get(cv2.CAP_PROP_BITRATE)  # bits per second
                             if bitrate_prop > 0:
                                 bitrate = bitrate_prop
+                                duration = cap.get(cv2.CAP_PROP_FRAME_COUNT) / cap.get(cv2.CAP_PROP_FPS)
+                                fps = cap.get(cv2.CAP_PROP_FPS)
                             else:
                                 # Fall back to calculated bitrate from file size and duration
                                 file_size = video_path.stat().st_size  # Size in bytes
@@ -448,7 +453,7 @@ def main(
                             cap.release()
                             
                             # Save to cache
-                            save_video_metadata(video_path, video_id, width, height, bitrate)
+                            save_video_metadata(video_path, video_id, width, height, bitrate, duration, fps)
                 
                 if processed_group and len(processed_group) > 1:
                     # Add dimensions and bitrate to each video in the processed group

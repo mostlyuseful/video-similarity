@@ -127,7 +127,7 @@
                 <strong>Dimensions:</strong> {{ video.width }}x{{ video.height }}<br>
                 <strong>Duration:</strong> {{ "%.2f" | format(video.duration) }}s<br>
                 <strong>FPS:</strong> {{ "%.2f" | format(video.fps) }}<br>
-                <strong>Bitrate:</strong> {{ "%.2f" | format(video.bitrate / 1024 / 1024) }} Mbps
+                <strong>Bitrate:</strong> {{ "%.2f" | format(video.bitrate) }} Kbps
             </div>
             <div class="video-wrapper">
                 <img id="frame-{{ loop.index0 }}" class="video-frame"
@@ -187,11 +187,7 @@
         function updateFrames(timePos) {
             frames.forEach(frame => {
                 const videoId = frame.dataset.videoId;
-                const fps = parseFloat(frame.dataset.fps);
-                // Calculate frame number based on time position
-                const frameNr = Math.floor(timePos * fps);
-                
-                frame.src = `/video/${videoId}/frame/${frameNr}`;
+                frame.src = `/video/${videoId}/frame/${timePos.toFixed(2)}`;
             });
         }
     </script>
