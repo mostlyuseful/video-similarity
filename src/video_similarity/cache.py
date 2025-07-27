@@ -58,7 +58,9 @@ def _init_database():
                 height INTEGER NOT NULL,
                 bitrate REAL NOT NULL,
                 file_size INTEGER NOT NULL,
-                mtime REAL NOT NULL
+                mtime REAL NOT NULL,
+                duration REAL NOT NULL DEFAULT 0,
+                fps REAL NOT NULL DEFAULT 0
             )
         ''')
         
@@ -72,6 +74,17 @@ def _init_database():
             CREATE INDEX IF NOT EXISTS idx_path ON videos (path)
         ''')
         
+        # Add duration and fps columns if they don't exist
+        try:
+            conn.execute("ALTER TABLE videos ADD COLUMN duration REAL NOT NULL DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+            
+        try:
+            conn.execute("ALTER TABLE videos ADD COLUMN fps REAL NOT NULL DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+            
         conn.commit()
 
 
@@ -99,7 +112,7 @@ def get_video_metadata(video_path: Path) -> Optional[dict]:
         # Query the database
         cursor = conn.execute(
             '''
-            SELECT video_id, width, height, bitrate, file_size, mtime
+            SELECT video_id, width, height, bitrate, file_size, mtime, duration, fps
             FROM videos
             WHERE path = ?
             ''',
@@ -111,7 +124,7 @@ def get_video_metadata(video_path: Path) -> Optional[dict]:
             return None
             
         # Unpack the row
-        video_id, width, height, bitrate, cached_size, cached_mtime = row
+        video_id, width, height, bitrate, cached_size, cached_mtime, duration, fps = row
         
         # Validate that the file hasn't changed
         if current_size == cached_size and abs(current_mtime - cached_mtime) < 1.0:
@@ -120,7 +133,9 @@ def get_video_metadata(video_path: Path) -> Optional[dict]:
                 "dimensions": f"{width}x{height}",
                 "width": width,
                 "height": height,
-                "bitrate": bitrate
+                "bitrate": bitrate,
+                "duration": duration,
+                "fps": fps,
             }
             
         # File has changed, so the cache is invalid
@@ -132,7 +147,7 @@ def get_video_metadata(video_path: Path) -> Optional[dict]:
         return None
 
 
-def save_video_metadata(video_path: Path, video_id: str, width: int, height: int, bitrate: float):
+def save_video_metadata(video_path: Path, video_id: str, width: int, height: int, bitrate: float, duration: float, fps: float):
     """
     Save video metadata to the cache.
     
@@ -142,6 +157,8 @@ def save_video_metadata(video_path: Path, video_id: str, width: int, height: int
         width: Video width in pixels
         height: Video height in pixels
         bitrate: Video bitrate in bits per second
+        duration: Video duration in seconds
+        fps: Video frames per second
     """
     if not video_path.exists():
         return
@@ -158,10 +175,10 @@ def save_video_metadata(video_path: Path, video_id: str, width: int, height: int
         conn.execute(
             '''
             INSERT OR REPLACE INTO videos
-            (path, video_id, width, height, bitrate, file_size, mtime)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (path, video_id, width, height, bitrate, file_size, mtime, duration, fps)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''',
-            (str(video_path), video_id, width, height, bitrate, file_size, mtime)
+            (str(video_path), video_id, width, height, bitrate, file_size, mtime, duration, fps)
         )
         
         conn.commit()

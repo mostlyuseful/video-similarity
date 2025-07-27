@@ -23,7 +23,7 @@ import cv2
 import numpy as np
 import typer
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from tqdm import tqdm
 
@@ -150,6 +150,51 @@ async def get_thumbnail(video_id: str, thumb_index: int):
         return FileResponse(thumb_path)
     # Return a placeholder if thumbnail generation fails
     return HTMLResponse(status_code=404)
+
+
+
+@app.get("/video/{video_id}/frame/{time_pos}")
+async def get_video_frame(video_id: str, time_pos: float):
+    """Serve a specific frame from a video as a JPEG image based on time position."""
+    if video_id not in video_map:
+        return HTMLResponse("Video not found", status_code=404)
+
+    video_info = video_map[video_id]
+    video_path = Path(video_info["path"])
+
+    if not video_path.exists():
+        return HTMLResponse("Video file not found", status_code=404)
+
+    cap = cv2.VideoCapture(str(video_path))
+    if not cap.isOpened():
+        return HTMLResponse("Could not open video file", status_code=500)
+
+    try:
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        if fps <= 0:
+            return HTMLResponse("Invalid video FPS", status_code=500)
+            
+        # Calculate frame number from time position
+        frame_nr = int(time_pos * fps)
+        
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        if frame_nr < 0 or frame_nr >= frame_count:
+            return HTMLResponse("Frame number out of range", status_code=400)
+
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_nr)
+        ret, frame = cap.read()
+        if not ret or frame is None:
+            return HTMLResponse("Could not read frame", status_code=500)
+
+        # Convert frame to JPEG
+        params = (cv2.IMWRITE_JPEG_QUALITY, 85)
+        _, buffer = cv2.imencode('.jpg', frame, params)
+        if not _:
+            return HTMLResponse("Could not encode frame", status_code=500)
+
+        return Response(content=buffer.tobytes(), media_type="image/jpeg")
+    finally:
+        cap.release()
 
 
 @app.post("/delete")
@@ -349,7 +394,7 @@ def main(
             raw_data = json.load(f)
             random.shuffle(raw_data)  # Shuffle the groups for random order
             for group in tqdm(raw_data, desc="Processing groups"):
-                if len(report_data) >= 10:
+                if len(report_data) >= 3:
                     typer.echo("Reached maximum number of groups to process. Stopping further processing.")
                     break
 
