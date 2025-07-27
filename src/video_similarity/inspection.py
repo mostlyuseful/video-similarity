@@ -109,6 +109,7 @@ def generate_thumbnail(video_path: Path, video_id: str, thumb_index: int):
 
             thumbnail_width, thumbnail_height = (320, 180) # 16:9 aspect ratio
 
+            thumb = 255 * np.ones((thumbnail_height, thumbnail_width, 3), dtype=np.uint8)
             if ret:
                 # First, resize the frame to a thumbnail size, keeping aspect ratio:
                 # Resize frame to fit within thumbnail_size, keeping aspect ratio
@@ -117,12 +118,13 @@ def generate_thumbnail(video_path: Path, video_id: str, thumb_index: int):
                 new_w, new_h = int(w * scale), int(h * scale)
                 resized = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
                 # Place resized image on a thumbnail canvas, centered
-                thumb = 255 * np.ones((thumbnail_height, thumbnail_width, 3), dtype=np.uint8)
                 y_off = (thumbnail_height - new_h) // 2
                 x_off = (thumbnail_width - new_w) // 2
                 thumb[y_off:y_off+new_h, x_off:x_off+new_w] = resized
-                # Then, convert the frame to JPEG format and save it:
-                cv2.imwrite(str(current_thumb_path), thumb)
+            else:
+                thumb[:,:] = (128, 128, 128)  # Gray placeholder if frame read fails
+            # Then, convert the frame to JPEG format and save it:
+            cv2.imwrite(str(current_thumb_path), thumb)
 
         cap.release()
 
@@ -207,6 +209,24 @@ async def delete_videos(request: Request):
     return RedirectResponse("/", status_code=303)
 
 
+def generate_all_thumbnails(report_data):
+    """
+    Generate thumbnails for all videos in the report data.
+    This is called after processing the report to ensure all thumbnails are ready.
+    """
+    for group in tqdm(report_data, desc="Generating thumbnails for groups"):
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            futures = []
+            for video_info in group:
+                video_path = Path(video_info["path"])
+                if video_path.exists():
+                    video_id = video_info.get("id", get_video_id(video_path))
+                    video_info["id"] = video_id
+                    futures.append(executor.submit(generate_thumbnail, video_path, video_id, 0))
+            # Wait for all futures to complete
+            for future in tqdm(futures, desc="Generating thumbnails", leave=False):
+                future.result()
+
 def main(
     report: Path = typer.Option(
         ...,
@@ -222,10 +242,12 @@ def main(
     if report.exists():
         with report.open("r") as f:
             raw_data = json.load(f)
+            random.shuffle(raw_data)  # Shuffle the groups for random order
             for group in tqdm(raw_data, desc="Processing groups"):
-                if len(report_data) >= 50:
-                    typer.echo("Maximum number of groups reached (50). Stopping processing.", err=True)
+                if len(report_data) >= 1000:
+                    typer.echo("Reached maximum number of groups to process. Stopping further processing.")
                     break
+
                 processed_group = []
                 # Process videos in the group using a thread pool
                 with ThreadPoolExecutor(max_workers=10) as executor:
@@ -250,6 +272,8 @@ def main(
     else:
         typer.echo(f"Error: Report file {report} does not exist.", err=True)
         raise typer.Exit(1)
+    
+    generate_all_thumbnails(report_data)
 
     import uvicorn
 
