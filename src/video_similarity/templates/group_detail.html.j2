@@ -1,0 +1,88 @@
+{% extends "index.html.j2" %}
+
+{% block content %}
+    <h1>Video Group: {{ group_name }}</h1>
+    
+    <div class="scrubber-container">
+        <label for="frame-scrubber">Frame: <span id="frame-value">0</span></label>
+        <input type="range" id="frame-scrubber" class="scrubber" min="0" max="100" value="0">
+    </div>
+
+    {% for video in videos %}
+    <div class="video-container">
+        <div class="video-info">
+            <strong>Path:</strong> {{ video.path }}<br>
+            <strong>Dimensions:</strong> {{ video.width }}x{{ video.height }}<br>
+            <strong>Duration:</strong> {{ "%.2f" | format(video.duration) }}s<br>
+            <strong>FPS:</strong> {{ "%.2f" | format(video.fps) }}<br>
+            <strong>Bitrate:</strong> {{ "%.2f" | format(video.bitrate / 1024 / 1024) }} Mbps
+        </div>
+        <video id="video-{{ loop.index0 }}" width="{{ video.width }}" height="{{ video.height }}" controls>
+            <source src="{{ video.src }}" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+    </div>
+    {% endfor %}
+
+    <script>
+        // Get references to all videos and the scrubber
+        const videos = document.querySelectorAll('video');
+        const scrubber = document.getElementById('frame-scrubber');
+        const frameValue = document.getElementById('frame-value');
+        
+        // Store video metadata
+        const videoData = [];
+        videos.forEach((video, index) => {
+            // Wait for metadata to load
+            video.addEventListener('loadedmetadata', () => {
+                videoData[index] = {
+                    duration: video.duration,
+                    fps: {{ videos[index].fps|default(30) }}
+                };
+                
+                // Update scrubber max if all videos have loaded
+                if (videoData.filter(v => v).length === videos.length) {
+                    updateScrubberMax();
+                }
+            });
+        });
+        
+        // Update the scrubber's max value based on the shortest video
+        function updateScrubberMax() {
+            const minDuration = Math.min(...videoData.map(v => v.duration));
+            const totalFrames = Math.floor(minDuration * Math.min(...videoData.map(v => v.fps)));
+            scrubber.max = totalFrames;
+            scrubber.value = 0;
+            frameValue.textContent = 0;
+        }
+        
+        // Handle scrubber changes
+        scrubber.addEventListener('input', function() {
+            const frame = parseInt(this.value);
+            frameValue.textContent = frame;
+            
+            // Calculate time for each video based on its FPS
+            videos.forEach((video, index) => {
+                if (videoData[index]) {
+                    const time = frame / videoData[index].fps;
+                    // Only seek if the video has loaded and we're not already at the right time
+                    if (video.readyState > 0 && Math.abs(video.currentTime - time) > 0.1) {
+                        video.currentTime = time;
+                    }
+                }
+            });
+        });
+        
+        // Sync videos when they play/pause
+        videos.forEach(video => {
+            video.addEventListener('play', function() {
+                // Pause other videos when one starts playing
+                videos.forEach(v => {
+                    if (v !== video && !v.paused) {
+                        v.pause();
+                    }
+                });
+            });
+        });
+    </script>
+{% endblock %}

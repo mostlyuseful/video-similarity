@@ -209,6 +209,86 @@ async def delete_videos(request: Request):
     return RedirectResponse("/", status_code=303)
 
 
+@app.get("/group/{group_id}", response_class=HTMLResponse)
+async def get_group_detail(request: Request, group_id: int):
+    """
+    Serve the group detail page for a specific group of similar videos.
+    
+    Args:
+        request: The FastAPI request object
+        group_id: The index of the group in the report_data list
+        
+    Returns:
+        HTMLResponse: Rendered group detail page with video data
+        
+    Raises:
+        HTTPException: If group_id is invalid or out of range
+    """
+    # Validate group_id
+    if group_id < 0 or group_id >= len(report_data):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail=f"Group {group_id} not found")
+    
+    # Get the group data
+    group = report_data[group_id]
+    group_name = f"Group {group_id}"
+    
+    # Prepare video data for the template
+    videos = []
+    for video_info in group:
+        video_path = Path(video_info["path"])
+        
+        # Get video metadata
+        cap = cv2.VideoCapture(str(video_path))
+        if not cap.isOpened():
+            cap.release()
+            continue
+            
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        duration = frame_count / fps if fps > 0 else 0
+        
+        # Get file size
+        file_size = video_path.stat().st_size  # Size in bytes
+        
+        # Try to get bitrate from video properties first
+        bitrate_prop = cap.get(cv2.CAP_PROP_BITRATE)  # bits per second
+        if bitrate_prop > 0:
+            bitrate = bitrate_prop
+        else:
+            # Fall back to calculated bitrate from file size and duration
+            bitrate = (file_size * 8) / duration if duration > 0 else 0  # bits per second
+        
+        cap.release()
+        
+        # Add video data to the list
+        videos.append({
+            "path": str(video_path),
+            "src": f"file://{video_path.absolute()}",  # Direct file URL for video playback
+            "width": width,
+            "height": height,
+            "fps": fps,
+            "duration": duration,
+            "size": file_size,
+            "bitrate": bitrate,
+            "id": video_info["id"],
+            "dimensions": f"{width}x{height}"
+        })
+    
+    # Render the template with the group data
+    return templates.TemplateResponse(
+        "group_detail.html.j2",
+        {
+            "request": request,
+            "group_name": group_name,
+            "videos": videos,
+            "group_id": group_id
+        }
+    )
+
+
 def generate_all_thumbnails(report_data):
     """
     Generate thumbnails for all videos in the report data.
@@ -268,6 +348,15 @@ def main(
                         processed_group.append(video_info)
                 
                 if processed_group and len(processed_group) > 1:
+                    # Add dimensions to each video in the processed group
+                    for video_info in processed_group:
+                        video_path = Path(video_info["path"])
+                        cap = cv2.VideoCapture(str(video_path))
+                        if cap.isOpened():
+                            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                            video_info["dimensions"] = f"{width}x{height}"
+                            cap.release()
                     report_data.append(processed_group)
     else:
         typer.echo(f"Error: Report file {report} does not exist.", err=True)

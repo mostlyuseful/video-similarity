@@ -14,6 +14,21 @@
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
         th { background-color: #f2f2f2; font-weight: bold; }
+        h2 a {
+            text-decoration: none;
+            color: inherit;
+            display: inline-block;
+            position: relative;
+        }
+        h2 a:hover {
+            text-decoration: underline;
+        }
+        h2 a::after {
+            content: " ↗";
+            font-size: 0.8em;
+            opacity: 0.6;
+            vertical-align: super;
+        }
     </style>
 </head>
 <body>
@@ -22,7 +37,7 @@
     <form action="/delete" method="post" class="delete-form">
         {% for i, group in enumerate(report) %}
         <div class="group">
-            <h2>Group {{ i + 1 }}</h2>
+            <h2><a href="/group/{{ i }}" aria-label="View details for Group {{ i + 1 }}">Group {{ i + 1 }}</a></h2>
             <table>
                 <thead>
                     <tr>
@@ -40,7 +55,9 @@
                         <td>
                             <label for="delete_{{ i }}_{{ loop.index0 }}">
                                 <strong>Path:</strong> {{ video.path }}<br>
-                                <strong>Size:</strong> {{ "%.2f" | format(video.size / 1024 / 1024) }} MB
+                                <strong>Size:</strong> {{ "%.2f" | format(video.size / 1024 / 1024) }} MB<br>
+                                <strong>Dimensions:</strong> {{ video.dimensions }}<br>
+                                <strong>Bitrate:</strong> {{ "%.2f" | format(video.bitrate / 1024 / 1024) }} Mbps
                             </label>
                         </td>
                         <td>
