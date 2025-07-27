@@ -1,17 +1,15 @@
 """
-This file will contain a FastAPI app for inspecting video similarity results:
-- czkawka-cli is used to find similar videos and generates a JSON report (externally, not done in this tool)
-- The FastAPI app will serve the provided report (example-czkawka-report.json for example):
-    - Each group of similar videos will be displayed as 3 still jpeg thumbnails (near beginning, middle, near end) of the first video in the group
-    - On clicking a group, the app will display the videos in that group:
-        - each video will be displayed in a separate row as a horizontal series of around 20 thumbnails
-        - the thumbnails are aligned with the videos in the group (table)
-        - Clicking a checkbox next to a video will select it for KEEPING, other videos in the group will be marked for DELETING
-    - The app will provide a button to confirm the selection and delete the unwanted videos
-      - If the app is started with --dry-run, the deletion will not be performed, but the selected videos will be printed to the console
-    - All thumbnails are generated on the fly using OpenCV and stored in a cache directory under XDG_CACHE_DIR
-      - Thumbnails are saved as JPEG files under the cache directory: $XDG_CACHE_DIR/video-similarity/thumbnails/$ID/$NR.jpg
-        - The video $ID is generated from sparse video contents: 100 1KB strips are read from the video using a well-defined random number generator and a SHA256 hash of the strips is computed
+This module implements a FastAPI application for inspecting and managing video similarity results.
+
+It loads a JSON report (from czkawka-cli), computes unique video IDs via content hashing, and generates
+JPEG thumbnails on demand with OpenCV. Thumbnails are cached under
+XDG_CACHE_DIR/video-similarity/thumbnails/<video_id>/<index>.jpg to prevent redundant work.
+
+The web interface provides:
+- A homepage listing groups of similar videos with representative thumbnails.
+- A detail view for each group showing metadata and a series of thumbnails per video.
+- A selection mechanism to mark videos for deletion and an optional dry-run mode.
+- Actual deletion of selected videos, or logging when run with --dry-run.
 """
 
 import hashlib
