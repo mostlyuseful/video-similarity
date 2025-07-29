@@ -17,8 +17,10 @@ def test_cli_with_insufficient_videos():
 
 def test_cli_with_nonexistent_file():
     """Test CLI with non-existent file."""
-    with patch("typer.echo") as mock_echo, patch("typer.Exit") as mock_exit, patch(
-        "pathlib.Path.exists", return_value=False
+    with (
+        patch("typer.echo") as mock_echo,
+        patch("typer.Exit") as mock_exit,
+        patch("pathlib.Path.exists", return_value=False),
     ):
         cli(["nonexistent.mp4", "video2.mp4"])
 
@@ -31,8 +33,9 @@ def test_cli_with_nonexistent_file():
 @patch("video_similarity.main.generate_json_output_poc")
 def test_cli_with_feature_extraction_failure(mock_gen_json, mock_compare, mock_extract):
     """Test CLI when feature extraction fails for some videos."""
-    with patch("typer.echo") as mock_echo, patch(
-        "pathlib.Path.exists", return_value=True
+    with (
+        patch("typer.echo") as mock_echo,
+        patch("pathlib.Path.exists", return_value=True),
     ):
         # Mock feature extraction - one succeeds, one fails
         mock_extract.side_effect = [[np.array([1, 2, 3])], None]
@@ -53,8 +56,9 @@ def test_cli_with_feature_extraction_failure(mock_gen_json, mock_compare, mock_e
 @patch("video_similarity.main.generate_json_output_poc")
 def test_cli_successful_comparison(mock_gen_json, mock_compare, mock_extract):
     """Test successful CLI execution."""
-    with patch("typer.echo") as mock_echo, patch(
-        "pathlib.Path.exists", return_value=True
+    with (
+        patch("typer.echo") as mock_echo,
+        patch("pathlib.Path.exists", return_value=True),
     ):
         # Mock successful feature extraction
         mock_extract.side_effect = [
@@ -79,8 +83,9 @@ def test_cli_successful_comparison(mock_gen_json, mock_compare, mock_extract):
 @patch("video_similarity.main.generate_json_output_poc")
 def test_cli_with_legacy_features(mock_gen_json, mock_compare, mock_extract):
     """Test CLI with legacy concatenated features."""
-    with patch("typer.echo") as mock_echo, patch(
-        "pathlib.Path.exists", return_value=True
+    with (
+        patch("typer.echo") as mock_echo,
+        patch("pathlib.Path.exists", return_value=True),
     ):
         # Mock legacy concatenated features (single ndarray)
         mock_extract.side_effect = [

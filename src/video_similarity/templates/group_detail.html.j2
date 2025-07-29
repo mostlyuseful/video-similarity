@@ -10,7 +10,7 @@
             margin: 2em;
             background-color: #f5f5f5;
         }
-        
+
         .container {
             max-width: 1200px;
             margin: 0 auto;
@@ -19,12 +19,12 @@
             border-radius: 10px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
-        
+
         h1 {
             color: #333;
             margin-bottom: 1em;
         }
-        
+
         .back-link {
             display: inline-block;
             margin-bottom: 2em;
@@ -32,11 +32,11 @@
             text-decoration: none;
             font-weight: bold;
         }
-        
+
         .back-link:hover {
             text-decoration: underline;
         }
-        
+
         .scrubber-container {
             margin: 2em 0;
             padding: 1em;
@@ -44,18 +44,18 @@
             border-radius: 5px;
             border: 1px solid #dee2e6;
         }
-        
+
         .scrubber-container label {
             font-weight: bold;
             margin-right: 1em;
         }
-        
+
         .scrubber {
             width: 100%;
             max-width: 400px;
             margin: 0 1em;
         }
-        
+
         .video-container {
             margin: 2em 0;
             padding: 1.5em;
@@ -63,7 +63,7 @@
             border-radius: 8px;
             background-color: #fafafa;
         }
-        
+
         .video-info {
             margin-bottom: 1em;
             padding: 1em;
@@ -71,37 +71,37 @@
             border-radius: 5px;
             border-left: 4px solid #007bff;
         }
-        
+
         .video-info strong {
             color: #333;
         }
-        
+
         video {
             max-width: 100%;
             height: auto;
             border-radius: 5px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
-        
+
         .video-wrapper {
             text-align: center;
             margin: 1em 0;
         }
-        
+
         .frame-display {
             font-weight: bold;
             color: #007bff;
         }
-        
+
         @media (max-width: 768px) {
             body {
                 margin: 1em;
             }
-            
+
             .container {
                 padding: 1em;
             }
-            
+
             .scrubber {
                 max-width: 100%;
                 margin: 0.5em 0;
@@ -112,9 +112,9 @@
 <body>
     <div class="container">
         <h1>Video Group: {{ group_name }}</h1>
-        
+
         <a href="/" class="back-link">← Back to All Groups</a>
-        
+
         <div class="scrubber-container">
             <label for="frame-scrubber">Frame: <span id="frame-value" class="frame-display">0</span></label>
             <input type="range" id="frame-scrubber" class="scrubber" min="0" max="100" value="0">
@@ -146,10 +146,10 @@
         const frames = document.querySelectorAll('.video-frame');
         const scrubber = document.getElementById('frame-scrubber');
         const frameValue = document.getElementById('frame-value');
-        
+
         let throttleTimer;
         const throttleDelay = 250; // milliseconds
-        
+
         // Calculate max duration for the group
         let maxDuration = 0;
         frames.forEach(frame => {
@@ -158,24 +158,24 @@
                 maxDuration = duration;
             }
         });
-        
+
         // Only set scrubber properties if we have valid duration
         if (maxDuration > 0) {
             scrubber.max = Math.floor(maxDuration * 100); // Represent time in centiseconds
             scrubber.value = 0;
-            
+
             // Handle scrubber changes
             scrubber.addEventListener('input', function() {
                 const timePos = parseFloat(this.value) / 100; // Convert centiseconds to seconds
                 frameValue.textContent = timePos.toFixed(2) + 's';
-                
+
                 // Throttle the frame updates
                 clearTimeout(throttleTimer);
                 throttleTimer = setTimeout(() => {
                     updateFrames(timePos);
                 }, throttleDelay);
             });
-            
+
             // Initialize with first frame
             updateFrames(0);
         } else {
@@ -183,7 +183,7 @@
             frameValue.textContent = "Error";
             scrubber.disabled = true;
         }
-        
+
         function updateFrames(timePos) {
             frames.forEach(frame => {
                 const videoId = frame.dataset.videoId;
