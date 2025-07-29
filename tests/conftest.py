@@ -1,6 +1,5 @@
 import pytest
 import shutil
-import subprocess
 from pathlib import Path
 import numpy as np
 from unittest.mock import MagicMock

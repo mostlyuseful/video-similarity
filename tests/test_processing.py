@@ -12,7 +12,9 @@ def test_extract_aggregated_features_success(video_file):
     assert isinstance(features, list)
     assert len(features) > 0
     assert all(isinstance(scene_features, np.ndarray) for scene_features in features)
-    assert all(scene_features.shape[1] == 32 for scene_features in features)  # ORB descriptors are 32 elements
+    assert all(
+        scene_features.shape[1] == 32 for scene_features in features
+    )  # ORB descriptors are 32 elements
 
 
 def test_extract_aggregated_features_corrupted(corrupted_video_file):
@@ -65,8 +67,14 @@ def test_extract_aggregated_features_frame_read_failure(
 
 def test_compare_features_valid_descriptors():
     # Create two sets of scene-based descriptors
-    descriptors_a = [np.random.rand(50, 32).astype(np.uint8), np.random.rand(30, 32).astype(np.uint8)]
-    descriptors_b = [np.random.rand(45, 32).astype(np.uint8), np.random.rand(35, 32).astype(np.uint8)]
+    descriptors_a = [
+        np.random.rand(50, 32).astype(np.uint8),
+        np.random.rand(30, 32).astype(np.uint8),
+    ]
+    descriptors_b = [
+        np.random.rand(45, 32).astype(np.uint8),
+        np.random.rand(35, 32).astype(np.uint8),
+    ]
 
     score = compare_features(descriptors_a, descriptors_b)
     assert 0.0 <= score <= 1.0
@@ -118,7 +126,6 @@ def test_compare_features_both_none():
 
     score = compare_features(descriptors_a, descriptors_b)
     assert score == 0.0
-
 
 
 @patch(
