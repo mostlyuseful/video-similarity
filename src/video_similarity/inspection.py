@@ -18,6 +18,7 @@ import random
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from datetime import datetime, timezone
 
 import cv2
 import numpy as np
@@ -137,7 +138,7 @@ async def read_root(request: Request):
 
 
 @app.get("/thumbnail/{video_id}/{thumb_index}")
-async def get_thumbnail(video_id: str, thumb_index: int):
+async def get_thumbnail(request: Request, video_id: str, thumb_index: int):
     if video_id not in video_map:
         return HTMLResponse(status_code=404)
 
@@ -147,7 +148,20 @@ async def get_thumbnail(video_id: str, thumb_index: int):
     thumb_path = generate_thumbnail(video_path, video_id, thumb_index)
 
     if thumb_path and thumb_path.exists():
-        return FileResponse(thumb_path)
+        stat_result = thumb_path.stat()
+        last_modified = datetime.fromtimestamp(stat_result.st_mtime, tz=timezone.utc)
+        etag = f'"{stat_result.st_mtime:.6f}-{stat_result.st_size}"'
+
+        if request.headers.get("if-none-match") == etag:
+            return Response(status_code=304)
+
+        response = FileResponse(thumb_path)
+        response.headers["Cache-Control"] = "public, must-revalidate"
+        response.headers["ETag"] = etag
+        response.headers["Last-Modified"] = last_modified.strftime(
+            "%a, %d %b %Y %H:%M:%S GMT"
+        )
+        return response
     # Return a placeholder if thumbnail generation fails
     return HTMLResponse(status_code=404)
 
@@ -397,7 +411,7 @@ def main(
             raw_data = json.load(f)
             random.shuffle(raw_data)  # Shuffle the groups for random order
             for group in tqdm(raw_data, desc="Processing groups"):
-                if len(report_data) >= 100:
+                if len(report_data) >= 1000:
                     typer.echo("Reached maximum number of groups to process. Stopping further processing.")
                     break
 
