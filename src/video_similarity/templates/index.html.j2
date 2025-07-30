@@ -6,8 +6,21 @@
     <style>
         body { font-family: sans-serif; margin: 2em; }
         .group { border: 1px solid #ccc; padding: 1em; margin-bottom: 1em; border-radius: 5px; }
-        .thumbnails { display: flex; flex-wrap: nowrap; }
-        .thumbnail { margin-right: 5px; }
+        .thumbnails {
+            display: flex;
+            flex-wrap: nowrap;
+            width: 100%;
+        }
+        .thumbnail {
+            flex: 1 1 0;
+            width: 0;
+            object-fit: contain;
+            height: auto;
+            margin-right: 5px;
+        }
+        .thumbnails-container {
+            width: 100%;
+        }
         .video-info { white-space: nowrap; }
         .delete-form { margin-top: 2em; }
         .delete-button { padding: 10px 20px; font-size: 1.2em; cursor: pointer; }
@@ -60,10 +73,10 @@
                                 <strong>Bitrate:</strong> {{ "%.2f" | format(video.bitrate / 1024) }} Mbps
                             </label>
                         </td>
-                        <td>
+                        <td class="thumbnails-container">
                             <div class="thumbnails">
-                                {% for thumb_idx in range(0,10) %}
-                                <img src="/thumbnail/{{ video.id }}/{{ thumb_idx }}" alt="Thumbnail {{ thumb_idx }} for {{ video.path }}" class="thumbnail">
+                                {% for thumb_idx in range(1,6) %}
+                                <img src="/thumbnail/{{ video.id }}/{{ thumb_idx }}" alt="Thumbnail {{ thumb_idx }} for {{ video.path }}" class="thumbnail" style="aspect-ratio: {{ video.dimensions.split('x')[0] }}/{{ video.dimensions.split('x')[1] }};">
                                 {% endfor %}
                             </div>
                         </td>
