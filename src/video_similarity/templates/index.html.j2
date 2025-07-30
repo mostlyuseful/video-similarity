@@ -21,6 +21,9 @@
         .thumbnails-container {
             width: 100%;
         }
+        .video-info-col {
+            width: 20%;
+        }
         .video-info { white-space: nowrap; }
         .delete-form { margin-top: 2em; }
         .delete-button { padding: 10px 20px; font-size: 1.2em; cursor: pointer; }
@@ -65,7 +68,7 @@
                         <td>
                             <input type="checkbox" name="{{ video.path }}" value="true" id="delete_{{ i }}_{{ loop.index0 }}">
                         </td>
-                        <td>
+                        <td class="video-info-col">
                             <label for="delete_{{ i }}_{{ loop.index0 }}">
                                 <strong>Path:</strong> {{ video.path }}<br>
                                 <strong>Size:</strong> {{ "%.2f" | format(video.size / 1024 / 1024) }} MB<br>
