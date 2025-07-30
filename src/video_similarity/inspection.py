@@ -291,7 +291,7 @@ async def get_group_detail(request: Request, group_id: int):
 
     # Get the group data
     group = report_data[group_id]
-    group_name = f"Group {group_id}"
+    group_name = f"Group {group_id + 1}"
 
     # Prepare video data for the template
     videos = []
