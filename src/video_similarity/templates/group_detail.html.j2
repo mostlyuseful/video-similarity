@@ -12,7 +12,6 @@
         }
 
         .container {
-            max-width: 1200px;
             margin: 0 auto;
             background-color: white;
             padding: 2em;
@@ -57,6 +56,9 @@
         }
 
         .video-container {
+            display: flex;
+            align-items: flex-start;
+            gap: 1.5em;
             margin: 2em 0;
             padding: 1.5em;
             border: 1px solid #ddd;
@@ -65,7 +67,7 @@
         }
 
         .video-info {
-            margin-bottom: 1em;
+            flex: 1;
             padding: 1em;
             background-color: white;
             border-radius: 5px;
@@ -84,8 +86,8 @@
         }
 
         .video-wrapper {
+            flex: 2;
             text-align: center;
-            margin: 1em 0;
         }
 
         .frame-display {
@@ -100,6 +102,10 @@
 
             .container {
                 padding: 1em;
+            }
+
+            .video-container {
+                flex-direction: column;
             }
 
             .scrubber {
